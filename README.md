@@ -3,7 +3,7 @@
 A LeetCode-style platform for practicing frontend UI development. Solve real interview-style frontend challenges — build the UI, see it render live, and check your solution — all in an in-browser code editor.
 
 🔗 **Live Demo:** deep-dev-seven.vercel.app
-📦 **GitHub Repo:** [Add your GitHub repo URL here]
+📦 **GitHub Repo:** https://github.com/PriyanshiBisht/deep-dev
 
 ---
 
