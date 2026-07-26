@@ -89,8 +89,8 @@ The app will be available at `http://localhost:5173`.
 - Search & filter challenges by difficulty/tags
 - Store challenges in the database instead of static dummy data
 - Submission history and streak tracking
-- Structural/visual similarity checks for solutions
-
+- AI-powered hints — get a contextual nudge (not the full solution) when stuck on a challenge
+- AI-based code review — basic feedback on structure/best practices after submission
 ---
 
 Built as a personal project to practice and showcase frontend development skills.
