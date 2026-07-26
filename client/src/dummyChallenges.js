@@ -16,9 +16,7 @@ const dummyChallenges = [
     <li>Contact</li>
   </ul>
 </nav>`,
-      css: `.navbar {
-  /* make logo and links sit on opposite ends */
-}`,
+      css: `/* Style .navbar so the logo and nav-links sit on opposite ends */`,
       js: ``,
     },
     solutionCode: {
@@ -70,15 +68,7 @@ const dummyChallenges = [
     <div class="answer">Functions to use state in components.</div>
   </div>
 </div>`,
-      css: `.answer {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-.answer.active {
-  max-height: 200px;
-  padding: 8px 0;
-}`,
+      css: `/* Hide .answer by default, and show it smoothly when it has an "active" class */`,
       js: `// On question click, toggle "active" class on its sibling .answer`,
     },
     solutionCode: {
@@ -128,11 +118,7 @@ const dummyChallenges = [
   <button id="increment">+</button>
   <button id="reset">Reset</button>
 </div>`,
-      css: `.counter {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}`,
+      css: `/* Arrange the counter elements in a row with some spacing */`,
       js: `// Add click handlers for increment, decrement, reset`,
     },
     solutionCode: {
@@ -170,16 +156,7 @@ document.getElementById("reset").onclick = () => countEl.textContent = count = 0
   <div class="card popular">Pro</div>
   <div class="card">Enterprise</div>
 </div>`,
-      css: `.pricing {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-.card {
-  padding: 2rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}`,
+      css: `/* Arrange cards in a row, add spacing/border, and highlight the .popular card */`,
       js: ``,
     },
     solutionCode: {
@@ -250,20 +227,7 @@ document.getElementById("search").addEventListener("input", (e) => {
     <p>Modal Content</p>
   </div>
 </div>`,
-      css: `.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.hidden { display: none; }
-.modal {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-}`,
+      css: `/* Style .overlay to cover the screen and center .modal, hide it when it has "hidden" */`,
       js: `// Show overlay on openBtn click, hide on closeBtn or overlay click`,
     },
     solutionCode: {
