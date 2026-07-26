@@ -33,7 +33,7 @@ const handleSubmit = async () => {
 
   const userData = JSON.parse(localStorage.getItem('user'));
 
-  const res = await fetch('http://localhost:5000/api/challenges/solve', {
+  const res = await fetch('https://deep-dev-ec2r.onrender.com/api/challenges/solve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: userData.id, challengeId: challenge.id }),

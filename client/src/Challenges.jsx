@@ -10,7 +10,7 @@ export default function Challenges() {
     const fetchSolved = async () => {
       const userData = JSON.parse(localStorage.getItem('user'));
 
-      const res = await fetch(`http://localhost:5000/api/challenges/solved/${userData.id}`);
+    const res = await fetch(`https://deep-dev-ec2r.onrender.com/api/challenges/solved/${userData.id}`);
       const data = await res.json();
 
       setSolvedIds(data.solvedChallenges);

@@ -9,7 +9,7 @@ export default function Login() {
     alert("Please fill all fields");
     return;
   }
-   const res = await fetch('http://localhost:5000/api/auth/login', {
+   const res = await fetch('https://deep-dev-ec2r.onrender.com/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),

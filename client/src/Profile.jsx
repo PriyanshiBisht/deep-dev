@@ -11,7 +11,7 @@ export default function Profile() {
 
 useEffect(() => {
   const fetchSolved = async () => {
-    const res = await fetch(`http://localhost:5000/api/challenges/solved/${userData.id}`);
+    const res = await fetch(`https://deep-dev-ec2r.onrender.com/api/challenges/solved/${userData.id}`);
     const data = await res.json();
     setSolvedIds(data.solvedChallenges);
   };
@@ -29,7 +29,7 @@ const [newPassword, setNewPassword] = useState("");
   navigate('/login');
 }
 const handleUpdateProfile = async () => {
-  const res = await fetch('http://localhost:5000/api/auth/update', {
+  const res = await fetch('https://deep-dev-ec2r.onrender.com/api/auth/update', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
