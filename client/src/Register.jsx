@@ -21,7 +21,7 @@ setRegistering(true);
 
     const data = await res.json();
     setRegistering(false);
-   
+   alert(data.message);
 
     if (res.ok) {
       localStorage.setItem('token', data.token);
