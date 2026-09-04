@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState,useEffect } from 'react'
 import Editor from '@monaco-editor/react';
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
@@ -15,7 +15,24 @@ export default function ChallengeDetail() {
   const [css, setCss] = useState(challenge?.starterCode.css || "");
   const [js, setJs] = useState(challenge?.starterCode.js || "");
   const [viewedSolution, setViewedSolution] = useState(false);
+const [reviewLoading, setReviewLoading] = useState(false);
+const [reviewResult, setReviewResult] = useState(null);
+const [reviewError, setReviewError] = useState(null);
+const [stepIndex, setStepIndex] = useState(0);
 
+const loadingSteps = [
+  "Analyzing code structure...",
+  "Checking against requirements...",
+  "Identifying potential bugs...",
+  "Generating scorecard...",
+];
+useEffect(() => {
+  if (!reviewLoading) return;
+  const interval = setInterval(() => {
+    setStepIndex((prev) => (prev + 1) % loadingSteps.length);
+  }, 1200);
+  return () => clearInterval(interval);
+}, [reviewLoading]);
   const handleReset = () => {
     setHtml(challenge?.starterCode.html || "");
     setCss(challenge?.starterCode.css || "");
@@ -30,24 +47,47 @@ export default function ChallengeDetail() {
     setViewedSolution(true);
   }
 
-  const handleSubmit = async () => {
-    if (viewedSolution) {
-      alert("You viewed the solution for this one — try solving it yourself next time!");
-      return;
-    }
+ 
+ const handleSubmit = async () => {
+  if (viewedSolution) {
+    alert("You viewed the solution for this one — try solving it yourself next time!");
+    return;
+  }
 
-    const userData = JSON.parse(localStorage.getItem('user'));
+  const userData = JSON.parse(localStorage.getItem('user'));
 
-    const res = await fetch('https://deep-dev-ec2r.onrender.com/api/challenges/solve', {
+  try {
+    await fetch('https://deep-dev-ec2r.onrender.com/api/challenges/solve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: userData.id, challengeId: challenge.id }),
     });
-
-    const data = await res.json();
-    alert("Great job! Challenge marked as solved.");
-    navigate('/profile');
+  } catch (err) {
+    console.error("Solve tracking failed:", err);
   }
+
+  setReviewLoading(true);
+  setReviewError(null);
+  setStepIndex(0);
+  try {
+    const res = await fetch('https://deep-dev-ec2r.onrender.com/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challengeTitle: challenge.title,
+        challengeDescription: challenge.description,
+        html, css, js,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    setReviewResult(data.review);
+  } catch (err) {
+    setReviewError("Review generate nahi ho payi, try again.");
+  } finally {
+    setReviewLoading(false);
+  }
+}
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -95,7 +135,7 @@ export default function ChallengeDetail() {
             </button>
           </div>
 
-          <div className="h-[350px] md:h-auto">
+          <div className="h-87.5 md:h-auto">
             {activeTab === "html" && (
               <Editor language="html" theme="vs-dark" height="350px" value={html} onChange={(value) => setHtml(value)} />
             )}
@@ -110,7 +150,7 @@ export default function ChallengeDetail() {
         </div>
 
         <div className="w-full md:w-1/2 p-4 bg-slate-950">
-          <div className="h-[350px] md:h-full bg-white rounded-xl overflow-hidden border border-slate-800">
+          <div className="h-87.5 md:h-full bg-white rounded-xl overflow-hidden border border-slate-800">
             <iframe
               srcDoc={`
                 <html>
@@ -124,7 +164,38 @@ export default function ChallengeDetail() {
         </div>
 
       </div>
+{(reviewLoading || reviewResult || reviewError) && (
+  <div className="px-4 py-4 bg-slate-950 border-t border-slate-800">
+    {reviewLoading && (
+      <div className="flex items-center gap-3 text-slate-400">
+        <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <p>{loadingSteps[stepIndex]}</p>
+      </div>
+    )}
 
+    {reviewError && <p className="text-red-400">{reviewError}</p>}
+
+    {reviewResult && !reviewLoading && (
+      <div className="text-white">
+        <div className="inline-block bg-purple-600 px-3 py-1 rounded-full font-semibold mb-3">
+          Score: {reviewResult.score}/10
+        </div>
+        <div className="mb-3">
+          <h4 className="text-slate-300 font-semibold mb-1">Bugs</h4>
+          <ul className="list-disc list-inside text-slate-400 text-sm space-y-1">
+            {reviewResult.bugs.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        </div>
+        <div>
+          <h4 className="text-slate-300 font-semibold mb-1">Suggestions</h4>
+          <ul className="list-disc list-inside text-slate-400 text-sm space-y-1">
+            {reviewResult.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </div>
+      </div>
+    )}
+  </div>
+)}
     </div>
   )
 }

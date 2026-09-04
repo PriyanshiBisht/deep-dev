@@ -1,10 +1,13 @@
 const express = require('express');
+
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 dotenv.config();
 const mongoose = require('mongoose');
+const Groq = require('groq-sdk');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const app = express();
 const jwt = require('jsonwebtoken');
 app.use(cors());
@@ -161,6 +164,47 @@ app.get('/api/challenges/solved/:userId', async (req, res) => {
     }
 
     res.status(200).json({ solvedChallenges: user.solvedChallenges });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+const REVIEW_SYSTEM_PROMPT = `You are a code reviewer for a web development learning platform.
+You will be given a challenge description and a student's HTML, CSS, and JS code.
+Identify bugs, give improvement suggestions specific to the challenge requirements,
+and generate a score.
+Respond ONLY with valid JSON in exactly this format, no extra text:
+{
+  "score": <number 0-10>,
+  "bugs": ["bug description 1", "bug description 2"],
+  "suggestions": ["suggestion 1", "suggestion 2"]
+}`;
+
+app.post('/api/review', async (req, res) => {
+  try {
+    const { challengeTitle, challengeDescription, html, css, js } = req.body;
+
+    if (!challengeDescription) {
+      return res.status(400).json({ message: "Challenge description missing" });
+    }
+
+    const codeBlock = `HTML:\n${html}\n\nCSS:\n${css}\n\nJS:\n${js}`;
+
+    const response = await groq.chat.completions.create({
+      model:"openai/gpt-oss-120b",
+      messages: [
+        { role: "system", content: REVIEW_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Challenge: ${challengeTitle}\nDescription: ${challengeDescription}\n\nStudent's code:\n${codeBlock}`,
+        },
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
+
+    const review = JSON.parse(response.choices[0].message.content);
+    res.status(200).json({ review });
 
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
