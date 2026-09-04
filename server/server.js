@@ -171,13 +171,20 @@ app.get('/api/challenges/solved/:userId', async (req, res) => {
 });
 const REVIEW_SYSTEM_PROMPT = `You are a code reviewer for a web development learning platform.
 You will be given a challenge description and a student's HTML, CSS, and JS code.
-Identify bugs, give improvement suggestions specific to the challenge requirements,
-and generate a score.
+
+IMPORTANT: Score and evaluate ONLY against what the challenge description explicitly asks for.
+Do not penalize the student for missing things the challenge did not require
+(e.g., accessibility, ARIA attributes, mobile responsiveness, hamburger menus)
+unless the description specifically mentions them.
+
+You may still mention such things as optional suggestions for real-world best practice,
+clearly separated from bugs that affect whether the requirement was met.
+
 Respond ONLY with valid JSON in exactly this format, no extra text:
 {
-  "score": <number 0-10>,
-  "bugs": ["bug description 1", "bug description 2"],
-  "suggestions": ["suggestion 1", "suggestion 2"]
+  "score": <number 0-10, based only on how well the stated requirement was met>,
+  "bugs": ["actual issues that break the stated requirement"],
+  "suggestions": ["optional best-practice improvements, not required by the challenge"]
 }`;
 
 app.post('/api/review', async (req, res) => {
