@@ -4,7 +4,7 @@ const dummyChallenges = [
     title: "Responsive Navbar",
     difficulty: "Easy",
     tags: ["Flexbox", "Layout"],
-    description: "Build a navbar with a logo on the left and nav links on the right.",
+    description:"Build a navbar with a logo on the left and nav links on the right. The .navbar must be a flex container, and the three links must sit in a row.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Navbar",
     solved: false,
     starterCode: {
@@ -50,7 +50,7 @@ const dummyChallenges = [
     title: "Accordion FAQ",
     difficulty: "Medium",
     tags: ["JavaScript", "DOM"],
-    description: "Build a 3-item FAQ accordion that expands/collapses on click.",
+    description: "Build a 3-item FAQ accordion. Answers are hidden on page load; clicking a question opens only its own answer, and clicking it again closes it.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Accordion",
     solved: false,
     starterCode: {
@@ -108,7 +108,7 @@ const dummyChallenges = [
     title: "Counter App",
     difficulty: "Easy",
     tags: ["JavaScript", "Events"],
-    description: "Build a counter with increment, decrement, and reset buttons.",
+    description: "Build a counter with increment, decrement, and reset buttons. The count starts at 0 and must never go below 0.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Counter",
     solved: false,
     starterCode: {
@@ -137,7 +137,7 @@ const dummyChallenges = [
 const countEl = document.getElementById("count");
 
 document.getElementById("increment").onclick = () => countEl.textContent = ++count;
-document.getElementById("decrement").onclick = () => countEl.textContent = --count;
+document.getElementById("decrement").onclick = () => { if (count > 0) countEl.textContent = --count; };
 document.getElementById("reset").onclick = () => countEl.textContent = count = 0;`,
     },
   },
@@ -147,7 +147,7 @@ document.getElementById("reset").onclick = () => countEl.textContent = count = 0
     title: "Pricing Cards",
     difficulty: "Easy",
     tags: ["Flexbox", "Layout"],
-    description: "Build a 3-tier pricing layout with a highlighted 'popular' plan.",
+    description: "Build a 3-tier pricing layout (Basic, Pro, Enterprise) with the cards in a row, spacing between them, and the .popular card (Pro) visually different from the others.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Pricing+Cards",
     solved: false,
     starterCode: {
@@ -188,7 +188,7 @@ document.getElementById("reset").onclick = () => countEl.textContent = count = 0
     title: "Debounced Search Bar",
     difficulty: "Hard",
     tags: ["JavaScript", "Performance"],
-    description: "Build a search input that waits 500ms after typing stops before showing results.",
+    description: "Build a search input that waits 500ms after typing stops before showing results in #result. The result must contain the typed text, and typing again restarts the wait.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Search+Bar",
     solved: false,
     starterCode: {
@@ -216,7 +216,7 @@ document.getElementById("search").addEventListener("input", (e) => {
     title: "Modal Popup",
     difficulty: "Medium",
     tags: ["JavaScript", "DOM"],
-    description: "Build a modal that opens on button click and closes on overlay click or close button.",
+    description:"Build a modal that is hidden on page load, opens on button click, and closes on the close button or a click on the dark overlay. Clicking inside the modal box must not close it.",
     image: "https://placehold.co/600x400/1e293b/ffffff?text=Modal",
     solved: false,
     starterCode: {

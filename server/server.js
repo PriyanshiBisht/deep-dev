@@ -4,11 +4,14 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
+const Submission = require('./models/Submission');
 dotenv.config();
 const mongoose = require('mongoose');
 const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const app = express();
+
+const { gradeInWorker } = require('./runGrader');
 const jwt = require('jsonwebtoken');
 app.use(cors());
 app.use(express.json());
@@ -135,26 +138,7 @@ app.put('/api/auth/update', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-app.post('/api/challenges/solve', async (req, res) => {
-  try {
-    const { userId, challengeId } = req.body;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (!user.solvedChallenges.includes(challengeId)) {
-      user.solvedChallenges.push(challengeId);
-      await user.save();
-    }
-
-    res.status(200).json({ message: "Challenge marked as solved", solvedChallenges: user.solvedChallenges });
-
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
 
 app.get('/api/challenges/solved/:userId', async (req, res) => {
   try {
@@ -169,33 +153,95 @@ app.get('/api/challenges/solved/:userId', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+app.get('/api/submissions/summary/:userId', async (req, res) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.params.userId);
+    const timezone = req.query.tz || 'UTC';
+
+    const since = new Date();
+    since.setDate(since.getDate() - 371);
+
+    const totalSubmissions = await Submission.countDocuments({ userId });
+
+    const daily = await Submission.aggregate([
+      { $match: { userId, createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.json({
+      totalSubmissions,
+      daily: daily.map((d) => ({ date: d._id, count: d.count })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+app.post('/api/grade', async (req, res) => {
+  try {
+    const { userId, challengeId, html, css, js } = req.body;
+
+    if (challengeId === undefined) {
+      return res.status(400).json({ message: "challengeId missing" });
+    }
+
+   const result = await gradeInWorker(Number(challengeId), {
+      html: html || "",
+      css: css || "",
+      js: js || "",
+    });
+    if (userId) {
+      await Submission.create({
+        userId,
+        challengeId: Number(challengeId),
+        allPassed: result.allPassed,
+      });
+    }
+    // Only a fully passing submission counts as solved
+    if (result.allPassed && userId) {
+      const user = await User.findById(userId);
+      if (user && !user.solvedChallenges.includes(Number(challengeId))) {
+        user.solvedChallenges.push(Number(challengeId));
+        await user.save();
+      }
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
 const REVIEW_SYSTEM_PROMPT = `You are a code reviewer for a web development learning platform.
-You will be given a challenge description and a student's HTML, CSS, and JS code.
+You will be given a challenge description, automated test results, and a student's HTML, CSS, and JS code.
 
-IMPORTANT: Score and evaluate ONLY against what the challenge description explicitly asks for.
-Do not penalize the student for missing things the challenge did not require
-(e.g., accessibility, ARIA attributes, mobile responsiveness, hamburger menus)
-unless the description specifically mentions them.
-
-You may still mention such things as optional suggestions for real-world best practice,
-clearly separated from bugs that affect whether the requirement was met.
+The automated test results are the ground truth for correctness. Do not contradict them and do not give a score.
+- For every FAILED test, explain in simple terms why the student's code likely fails it and how to fix it, pointing to the relevant part of their code.
+- If all tests passed, bugs must be an empty array.
+- Put optional best-practice improvements (accessibility, readability, naming, etc.) under suggestions, and never present them as required.
 
 Respond ONLY with valid JSON in exactly this format, no extra text:
 {
-  "score": <number 0-10, based only on how well the stated requirement was met>,
-  "bugs": ["actual issues that break the stated requirement"],
-  "suggestions": ["optional best-practice improvements, not required by the challenge"]
+  "bugs": ["one entry per failed test, explaining the likely cause and fix"],
+  "suggestions": ["optional best-practice improvements"]
 }`;
 
 app.post('/api/review', async (req, res) => {
   try {
-    const { challengeTitle, challengeDescription, html, css, js } = req.body;
+    const { challengeTitle, challengeDescription, html, css, js, testResults } = req.body;
 
     if (!challengeDescription) {
       return res.status(400).json({ message: "Challenge description missing" });
     }
 
     const codeBlock = `HTML:\n${html}\n\nCSS:\n${css}\n\nJS:\n${js}`;
+    const testBlock = Array.isArray(testResults)
+  ? testResults.map((t) => `- [${t.passed ? "PASS" : "FAIL"}] ${t.name}`).join("\n")
+  : "No test results provided";
 
     const response = await groq.chat.completions.create({
       model:"openai/gpt-oss-120b",
@@ -203,7 +249,7 @@ app.post('/api/review', async (req, res) => {
         { role: "system", content: REVIEW_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Challenge: ${challengeTitle}\nDescription: ${challengeDescription}\n\nStudent's code:\n${codeBlock}`,
+          content: `Challenge: ${challengeTitle}\nDescription: ${challengeDescription}\n\nAutomated test results:\n${testBlock}\n\nStudent's code:\n${codeBlock}`,
         },
       ],
       temperature: 0.3,

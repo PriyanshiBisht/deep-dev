@@ -1,10 +1,11 @@
+
 import { useState,useEffect } from 'react'
 import Editor from '@monaco-editor/react';
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import dummyChallenges from './dummyChallenges'  
 import { useNavigate } from 'react-router-dom';
-
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 export default function ChallengeDetail() {
   const { id } = useParams();
   const challenge = dummyChallenges.find((c) => c.id === parseInt(id));
@@ -18,6 +19,7 @@ export default function ChallengeDetail() {
 const [reviewLoading, setReviewLoading] = useState(false);
 const [reviewResult, setReviewResult] = useState(null);
 const [reviewError, setReviewError] = useState(null);
+const [gradeResult, setGradeResult] = useState(null);
 const [stepIndex, setStepIndex] = useState(0);
 
 const loadingSteps = [
@@ -47,7 +49,6 @@ useEffect(() => {
     setViewedSolution(true);
   }
 
- 
  const handleSubmit = async () => {
   if (viewedSolution) {
     alert("You viewed the solution for this one — try solving it yourself next time!");
@@ -56,38 +57,47 @@ useEffect(() => {
 
   const userData = JSON.parse(localStorage.getItem('user'));
 
+  setGradeResult(null);
+  setReviewResult(null);
+  setReviewError(null);
+  setReviewLoading(true);
+  setStepIndex(0);
+
   try {
-    await fetch('https://deep-dev-ec2r.onrender.com/api/challenges/solve', {
+    // 1) Run the tests (the server also marks the challenge solved if all pass)
+    const gradeRes = await fetch(`${API_URL}/api/grade`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: userData.id, challengeId: challenge.id }),
+      body: JSON.stringify({
+        userId: userData.id,
+        challengeId: challenge.id,
+        html, css, js,
+      }),
     });
-  } catch (err) {
-    console.error("Solve tracking failed:", err);
-  }
+    const grade = await gradeRes.json();
+    if (!gradeRes.ok) throw new Error(grade.message);
+    setGradeResult(grade);
 
-  setReviewLoading(true);
-  setReviewError(null);
-  setStepIndex(0);
-  try {
-    const res = await fetch('https://deep-dev-ec2r.onrender.com/api/review', {
+    // 2) Ask the LLM to explain the failures
+    const reviewRes = await fetch(`${API_URL}/api/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         challengeTitle: challenge.title,
         challengeDescription: challenge.description,
         html, css, js,
+        testResults: grade.results,
       }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    const data = await reviewRes.json();
+    if (!reviewRes.ok) throw new Error(data.message);
     setReviewResult(data.review);
   } catch (err) {
-    setReviewError("Review generate nahi ho payi, try again.");
+    setReviewError(err.message || "Something went wrong, try again.");
   } finally {
     setReviewLoading(false);
   }
-}
+};
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -101,6 +111,9 @@ useEffect(() => {
           <Link to="/challenge" className="text-slate-400 text-sm px-3 py-1 rounded hover:bg-slate-800">
             Go Back to Challenges
           </Link>
+          <Link to="/profile" className="text-slate-400 text-sm px-3 py-1 rounded hover:bg-slate-800">
+  Profile
+</Link>
           <button className="text-slate-400 text-sm px-3 py-1 rounded hover:bg-slate-800" onClick={handleViewSolution}>
             View Solution
           </button>
@@ -164,8 +177,24 @@ useEffect(() => {
         </div>
 
       </div>
-{(reviewLoading || reviewResult || reviewError) && (
+{(reviewLoading || gradeResult || reviewResult || reviewError) && (
   <div className="px-4 py-4 bg-slate-950 border-t border-slate-800">
+
+    {gradeResult && (
+      <div className="text-white mb-4">
+        <div className={`inline-block px-3 py-1 rounded-full font-semibold mb-3 ${gradeResult.allPassed ? 'bg-green-600' : 'bg-purple-600'}`}>
+          Tests passed: {gradeResult.passedCount}/{gradeResult.total}
+        </div>
+        <ul className="space-y-1 text-sm">
+          {gradeResult.results.map((r, i) => (
+            <li key={i} className={r.passed ? 'text-green-400' : 'text-red-400'}>
+              {r.passed ? '✔' : '✘'} {r.name}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
     {reviewLoading && (
       <div className="flex items-center gap-3 text-slate-400">
         <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -177,15 +206,14 @@ useEffect(() => {
 
     {reviewResult && !reviewLoading && (
       <div className="text-white">
-        <div className="inline-block bg-purple-600 px-3 py-1 rounded-full font-semibold mb-3">
-          Score: {reviewResult.score}/10
-        </div>
-        <div className="mb-3">
-          <h4 className="text-slate-300 font-semibold mb-1">Bugs</h4>
-          <ul className="list-disc list-inside text-slate-400 text-sm space-y-1">
-            {reviewResult.bugs.map((b, i) => <li key={i}>{b}</li>)}
-          </ul>
-        </div>
+        {reviewResult.bugs.length > 0 && (
+          <div className="mb-3">
+            <h4 className="text-slate-300 font-semibold mb-1">What to fix</h4>
+            <ul className="list-disc list-inside text-slate-400 text-sm space-y-1">
+              {reviewResult.bugs.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          </div>
+        )}
         <div>
           <h4 className="text-slate-300 font-semibold mb-1">Suggestions</h4>
           <ul className="list-disc list-inside text-slate-400 text-sm space-y-1">
