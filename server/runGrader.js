@@ -1,29 +1,54 @@
 const { Worker } = require("worker_threads");
 const path = require("path");
 
-function gradeInWorker(challengeId, code, timeoutMs = 10000) {
+
+function gradeInWorker(
+  challengeId,
+  code,
+  { startupMs = 30000, gradingMs = 8000 } = {}
+) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.join(__dirname, "gradeWorker.js"), {
-      workerData: { challengeId, code },
-      env: {},
-      resourceLimits: { maxOldGenerationSizeMb: 128 },
+      env: {},                                          // worker gets no secrets
+      resourceLimits: { maxOldGenerationSizeMb: 128 },  // memory cap
     });
 
-    const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error("Grading timed out. Does your code have an infinite loop?"));
-    }, timeoutMs);
+    const startedAt = Date.now();
+    let readyAt = null;
+    let finished = false;
+    let timer = setTimeout(
+      () => fail("The grader took too long to start. Please try again."),
+      startupMs
+    );
 
-    worker.once("message", (msg) => {
+    function finish(settle, value) {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       worker.terminate();
-      msg.ok ? resolve(msg.result) : reject(new Error(msg.message));
+      settle(value);
+    }
+    const fail = (message) => finish(reject, new Error(message));
+
+    worker.on("message", (msg) => {
+      if (msg.type === "ready") {
+        readyAt = Date.now();
+        console.log(`grader worker ready after ${readyAt - startedAt} ms`);
+        clearTimeout(timer);
+        // The infinite-loop clock only starts now, when the real work begins
+        timer = setTimeout(
+          () => fail("Grading timed out. Does your code have an infinite loop?"),
+          gradingMs
+        );
+        worker.postMessage({ challengeId, code });
+      } else if (msg.type === "result") {
+        console.log(`grading took ${Date.now() - readyAt} ms`);
+        msg.ok ? finish(resolve, msg.result) : fail(msg.message);
+      }
     });
 
-    worker.once("error", (err) => {
-      clearTimeout(timer);
-      reject(new Error("Grading failed: " + err.message));
-    });
+    worker.on("error", (err) => fail("Grading failed: " + err.message));
+    worker.on("exit", () => fail("The grader stopped unexpectedly."));
   });
 }
 
