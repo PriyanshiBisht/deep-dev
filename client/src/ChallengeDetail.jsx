@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import dummyChallenges from './dummyChallenges'  
 import { useNavigate } from 'react-router-dom';
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+import { apiFetch } from './api'
+
 export default function ChallengeDetail() {
   const { id } = useParams();
   const challenge = dummyChallenges.find((c) => c.id === parseInt(id));
@@ -55,7 +56,7 @@ useEffect(() => {
     return;
   }
 
-  const userData = JSON.parse(localStorage.getItem('user'));
+  
 
   setGradeResult(null);
   setReviewResult(null);
@@ -65,23 +66,19 @@ useEffect(() => {
 
   try {
     // 1) Run the tests (the server also marks the challenge solved if all pass)
-    const gradeRes = await fetch(`${API_URL}/api/grade`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: userData.id,
-        challengeId: challenge.id,
-        html, css, js,
-      }),
-    });
+    const gradeRes = await apiFetch('/api/grade', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ challengeId: challenge.id, html, css, js }),
+});
     const grade = await gradeRes.json();
     if (!gradeRes.ok) throw new Error(grade.message);
     setGradeResult(grade);
 
     // 2) Ask the LLM to explain the failures
-    const reviewRes = await fetch(`${API_URL}/api/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const reviewRes = await apiFetch('/api/review', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         challengeTitle: challenge.title,
         challengeDescription: challenge.description,

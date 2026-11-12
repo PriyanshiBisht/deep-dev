@@ -6,7 +6,8 @@ import Navbar from './Navbar'
 import { useNavigate } from 'react-router-dom';
 import dummyChallenges from './dummyChallenges'
 import SubmissionCalendar from './SubmissionCalendar'
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+import { apiFetch } from './api'
+
 
 export default function Profile() {
   const userData = JSON.parse(localStorage.getItem('user'));
@@ -14,9 +15,9 @@ export default function Profile() {
 
 useEffect(() => {
   const fetchSolved = async () => {
-    const res = await fetch(`https://deep-dev-ec2r.onrender.com/api/challenges/solved/${userData.id}`);
-    const data = await res.json();
-    setSolvedIds(data.solvedChallenges);
+  const res = await apiFetch('/api/challenges/solved');
+const data = await res.json();
+if (res.ok) setSolvedIds(data.solvedChallenges);
   };
 
   fetchSolved();
@@ -24,9 +25,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchSummary = async () => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const res = await fetch(
-      `${API_URL}/api/submissions/summary/${userData.id}?tz=${encodeURIComponent(tz)}`
-    );
+  const res = await apiFetch(`/api/submissions/summary?tz=${encodeURIComponent(tz)}`);
     const data = await res.json();
     if (res.ok) setSummary(data);
   };
@@ -50,15 +49,11 @@ const [newPassword, setNewPassword] = useState("");
   navigate('/login');
 }
 const handleUpdateProfile = async () => {
-  const res = await fetch('https://deep-dev-ec2r.onrender.com/api/auth/update', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId: userData.id,
-      username: newUsername,
-      password: newPassword,
-    }),
-  });
+ const res = await apiFetch('/api/auth/update', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username: newUsername, password: newPassword }),
+});
 
   const data = await res.json();
   alert(data.message);

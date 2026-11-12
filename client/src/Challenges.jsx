@@ -2,19 +2,16 @@ import React, { useState, useEffect } from 'react'
 import ChallengeCard from './ChallengeCard'
 import dummyChallenges from './dummyChallenges'
 import Navbar from './Navbar'
-
+import { apiFetch } from './api'
 export default function Challenges() {
   const [solvedIds, setSolvedIds] = useState([]);
 
   useEffect(() => {
     const fetchSolved = async () => {
-      const userData = JSON.parse(localStorage.getItem('user'));
-
-    const res = await fetch(`https://deep-dev-ec2r.onrender.com/api/challenges/solved/${userData.id}`);
-      const data = await res.json();
-
-      setSolvedIds(data.solvedChallenges);
-    };
+const res = await apiFetch('/api/challenges/solved');
+  const data = await res.json();
+  if (res.ok) setSolvedIds(data.solvedChallenges);
+};
 
     fetchSolved();
   }, []);

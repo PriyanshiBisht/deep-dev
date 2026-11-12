@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const auth = require('./middleware/auth');
 const User = require('./models/User');
 const Submission = require('./models/Submission');
 dotenv.config();
@@ -104,11 +105,13 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-app.put('/api/auth/update', async (req, res) => {
+app.put('/api/auth/update',  auth, async (req, res) => {
   try {
-    const { userId, username, password } = req.body;
+    
+    const { username, password } = req.body;
 
-    const user = await User.findById(userId);
+   
+    const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -140,9 +143,9 @@ app.put('/api/auth/update', async (req, res) => {
 });
 
 
-app.get('/api/challenges/solved/:userId', async (req, res) => {
+app.get('/api/challenges/solved', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -153,9 +156,9 @@ app.get('/api/challenges/solved/:userId', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-app.get('/api/submissions/summary/:userId', async (req, res) => {
+app.get('/api/submissions/summary', auth, async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.params.userId);
+    const userId = new mongoose.Types.ObjectId(req.userId);
     const timezone = req.query.tz || 'UTC';
 
     const since = new Date();
@@ -182,29 +185,29 @@ app.get('/api/submissions/summary/:userId', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-app.post('/api/grade', async (req, res) => {
+app.post('/api/grade', auth, async (req, res) => {
   try {
-    const { userId, challengeId, html, css, js } = req.body;
+    const { challengeId, html, css, js } = req.body;
 
     if (challengeId === undefined) {
       return res.status(400).json({ message: "challengeId missing" });
     }
 
-   const result = await gradeInWorker(Number(challengeId), {
+    const result = await gradeInWorker(Number(challengeId), {
       html: html || "",
       css: css || "",
       js: js || "",
     });
-    if (userId) {
-      await Submission.create({
-        userId,
-        challengeId: Number(challengeId),
-        allPassed: result.allPassed,
-      });
-    }
+
+    await Submission.create({
+      userId: req.userId,
+      challengeId: Number(challengeId),
+      allPassed: result.allPassed,
+    });
+
     // Only a fully passing submission counts as solved
-    if (result.allPassed && userId) {
-      const user = await User.findById(userId);
+    if (result.allPassed) {
+      const user = await User.findById(req.userId);
       if (user && !user.solvedChallenges.includes(Number(challengeId))) {
         user.solvedChallenges.push(Number(challengeId));
         await user.save();
@@ -230,7 +233,7 @@ Respond ONLY with valid JSON in exactly this format, no extra text:
   "suggestions": ["optional best-practice improvements"]
 }`;
 
-app.post('/api/review', async (req, res) => {
+app.post('/api/review', auth, async (req, res) => {
   try {
     const { challengeTitle, challengeDescription, html, css, js, testResults } = req.body;
 
